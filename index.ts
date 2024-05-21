@@ -1,33 +1,45 @@
 import puppeteer, { type Browser, type Page } from "puppeteer";
+import os from "os";
 
-type BrowserAndPage = {
-  browser: Browser,
-  page: Page,
+type Runner = () => Promise<{ browser: Browser, page: Page }>;
+
+// local system language
+const LANG_SYSTEM = Intl.DateTimeFormat().resolvedOptions().locale;
+
+// language to test
+const LANG_TEST = 'de'; //! use a different language than your system language
+
+// start a browser instance to read the installed version
+const browserVersion = async () => {
+  const browser = await puppeteer.launch();
+  const version = await browser.version();
+  await browser.close();
+
+  return version;
 }
 
-const LANG = 'de-DE';
-
-const options: Record<string, (() => Promise<BrowserAndPage>)> = {
+// options to set the langauge 
+const options: Record<string, Runner> = {
   "cli-args-lang": async () => {
-    console.log(`Using --lang=${LANG}`);
+    console.log(`Using --lang=${LANG_TEST}`);
 
-    const args = [...puppeteer.defaultArgs(), `--lang=${LANG}`];
+    const args = [...puppeteer.defaultArgs(), `--lang=${LANG_TEST}`];
     const browser = await puppeteer.launch({
       args,
-      headless: false,
+      headless: true,
     });
     const page = await browser.newPage();
     return { browser, page };
   },
 
   "env-var-lang": async () => {
-    console.log(`Using env.LANG=${LANG}`);
+    console.log(`Using env.LANG=${LANG_TEST}`);
 
-    process.env.LANG = LANG;
+    process.env.LANG = LANG_TEST;
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       env: {
-        LANG,
+        LANG: LANG_TEST,
       }
     });
     const page = await browser.newPage();
@@ -35,24 +47,24 @@ const options: Record<string, (() => Promise<BrowserAndPage>)> = {
   },
 
   "http-accept-language": async () => {
-    console.log(`Sending HTTP header Accept-Language: ${LANG}`);
+    console.log(`Sending HTTP header Accept-Language: ${LANG_TEST}`);
 
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
     });
 
     const page = await browser.newPage();
     await page.setExtraHTTPHeaders({
-      'Accept-Language': LANG,
+      'Accept-Language': LANG_TEST,
     });
     return { browser, page };
   },
 
   "page-override-navigator": async () => {
-    console.log(`Overriding navigator.language=${LANG}`);
+    console.log(`Overriding navigator.language=${LANG_TEST}`);
 
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
     });
 
     const page = await browser.newPage();
@@ -67,31 +79,43 @@ const options: Record<string, (() => Promise<BrowserAndPage>)> = {
           return [lang];
         },
       });
-    }, LANG);
+    }, LANG_TEST);
     return { browser, page };
   },
 
   "cdp-override-network": async () => {
-    console.log(`Using CDP Network.setUserAgentOverride(acceptLanguage: ${LANG})`);
+    console.log(`Using CDP Network.setUserAgentOverride(acceptLanguage: ${LANG_TEST})`);
 
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
     });
 
     const page = await browser.newPage();
     const cdpSession = await page.createCDPSession();
     cdpSession.send('Network.setUserAgentOverride', {
       userAgent: await browser.userAgent(),
-      acceptLanguage: LANG,
+      acceptLanguage: LANG_TEST,
     });
 
     return { browser, page };
   }
 }
 
-for (const [option, startBrowser] of Object.entries(options)) {
+// print system and browser information
+console.log(`System:   ${os.platform()}/${os.release()}, ${os.arch()}`);
+console.log(`Language: ${LANG_SYSTEM}`)
+console.log(`Browser:  ${await browserVersion()}`);
+console.log();
+
+if (LANG_SYSTEM === LANG_TEST) {
+  console.error(`System language "${LANG_SYSTEM}" should be different from "${LANG_TEST}"`);
+  process.exit(1);
+}
+
+// run each option against browserleaks.com to extract the langauge
+for (const [option, run] of Object.entries(options)) {
   try {
-    const { browser, page } = await startBrowser();
+    const { browser, page } = await run();
 
     await page.goto('https://browserleaks.com/javascript');
 

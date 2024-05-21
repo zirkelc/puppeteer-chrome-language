@@ -1,17 +1,19 @@
 {
-  "name": "puppeteer-chrome-language",
+  "name": "puppeteer-language-experiment",
   "version": "1.0.0",
   "description": "",
   "type": "module",
   "scripts": {
-    "start": "tsx index.ts"
+    "test": "tsx index.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@puppeteer/browsers": "^2.2.3",
-    "puppeteer": "^22.9.0",
+    "puppeteer": "22.9.0"
+  },
+  "devDependencies": {
+    "@tsconfig/node20": "^20.1.4",
     "tsx": "^4.10.4",
     "typescript": "^5.4.5"
   }
